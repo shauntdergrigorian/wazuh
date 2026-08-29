@@ -1,0 +1,165 @@
+<group name="syscheck,ransomware_detection,generic_rule,">
+  <!-- Frequency rule: Triggers when 50 FIM events match on the same agent within 5 seconds -->
+  <rule id="100057" level="12" frequency="50" timeframe="5" ignore="60">
+    <if_matched_group>syscheck</if_matched_group>
+    <description>Possible Ransomware / Rapid File Modification: Over 50 file changes or renames detected in under 5 seconds on $(agent.name).</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="windows,rtlo,apt29">
+  <rule id="100058" level="15">
+    <if_sid>92060</if_sid>
+    <description>Possible adversary activity - Masquerading (RTLO) detected</description>
+    <mitre>
+      <id>T1036.002</id>
+    </mitre>
+  </rule>
+  <rule id="100059" level="15">
+    <if_sid>92064</if_sid>
+    <description>Possible adversary activity - Masquerading (RTLO) detected</description>
+    <mitre>
+      <id>T1036.002</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="windows,process_creation,discovery,apt29,">
+  <!-- Base rule: Single discovery binary execution via Sysmon -->
+  <rule id="100060" level="3">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?i)[\\/](whoami|ipconfig|netstat|nltest|net|systeminfo|quser)\.exe$</field>
+    <description>Possible adversary activity - Discovery binary executed: $(win.eventdata.image)</description>
+    <mitre>
+      <id>T1087</id>
+      <id>T1082</id>
+      <id>T1049</id>
+    </mitre>
+  </rule>
+
+  <!-- Frequency rule: Burst detection (4 executions in 20s on the same agent) -->
+  <rule id="100061" level="10" frequency="4" timeframe="20">
+    <if_matched_sid>100060</if_matched_sid>
+    <description>Possible adversary activity - HIGH: Rapid Host Enumeration / Discovery Burst Detected on $(win.system.computer)</description>
+    <mitre>
+      <id>T1082</id>
+      <id>T1083</id>
+      <id>T1119</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="virustotal,generic_rule,">
+  <rule id="100092" level="12">
+      <if_sid>657</if_sid>
+      <match>Successfully removed threat</match>
+      <description>$(parameters.program) removed threat located at $(parameters.alert.data.virustotal.source.file)</description>
+        </rule>
+
+  <rule id="100093" level="12">
+    <if_sid>657</if_sid>
+    <match>Error removing threat</match>
+    <description>Error removing threat located at $(parameters.alert.data.virustotal.source.file)</description>
+  </rule>
+</group>
+
+<group name="attack,generic_rule,">
+  <rule id="100100" level="10">
+    <if_group>web|attack|attacks</if_group>
+    <list field="srcip" lookup="address_match_key">etc/lists/blacklist-alienvault</list>
+    <description>IP address found in AlienVault reputation database.</description>
+  </rule>
+</group>
+
+<group name="Windows,attack,apt29">
+<!-- Detecting an LSASS memory dumping attack using Rundll32.exe Minidump Function or Comsvcs.dll Exploitation -->
+  <rule id="100010" level="10" ignore="10">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\rundll32.exe</field>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)[c-z]:\\\\Windows\\\\System32\\\\comsvcs\.dll</field>
+    <description>Possible adversary activity - LSASS memory dump: $(win.eventdata.imageLoaded) loaded by using $(win.eventData.image) on $(win.system.computer).</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+  </rule>
+<!-- Detecting an LSASS memory dumping attack using specialized tools -->
+  <rule id="100011" level="10" ignore="10">
+    <if_sid>61613</if_sid>
+    <field name="win.eventData.targetFilename" type="pcre2">(?i)\\\\[^\\]*\.dmp$</field>
+    <field name="win.eventData.image" negate="yes" type="pcre2">(?i)\\\\lsass.*</field>
+    <description>Possible adversary activity - LSASS memory dump: $(win.eventdata.image) created a new file on $(win.system.computer) endpoint.</description>
+    <mitre>
+      <id>T1003.001</id>
+    </mitre>
+  </rule>
+<!-- Detecting a Windows Credential Manager exploitation attack -->
+  <rule id="100012" level="10" ignore="10">
+    <if_sid>61603</if_sid>
+    <field name="win.eventData.Image" type="pcre2">(?i)\\\\rundll32.exe</field>
+    <field name="win.eventData.commandLine" type="pcre2">keymgr.dll,KRShowKeyMgr</field>
+    <description>Possible adversary activity - Credential Manager Access via $(win.eventData.Image) on $(win.system.computer) endpoint.</description>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+      </rule>
+<!--  Detecting a Windows Credential Manager exploitation attack by VaultCmd process enumeration -->
+  <rule id="100013" level="10" ignore="10">
+    <if_sid>92052</if_sid>
+    <field name="win.eventData.image" type="pcre2">(?i)\\\\vaultcmd.exe</field>
+    <field name="win.eventData.commandLine" type="pcre2">list</field>
+    <description>Possible adversary activity - Attempt to list credentials via $(win.eventData.Image) on $(win.system.computer) endpoint.</description>
+    <mitre>
+      <id>T1003</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="syscheck,apt29,">
+  <!-- Rule that detects .lnk file intrusion into endpoint. -->
+  <rule id="110000" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i).lnk$</field>
+    <description>Windows shortcut "$(file)" has been added.</description>
+    <mitre>
+      <id>T1492</id>
+    </mitre>
+  </rule>
+  <!-- Rule that detects .lnk file modification on endpoint. -->
+  <rule id="110001" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i).lnk$</field>
+    <description>Windows shortcut "$(file)" has been modified.</description>
+  </rule>
+</group>
+
+<group name="windows_shortcut,apt29,">
+  <rule id="110003" level="12">
+    <decoded_as>raw_json</decoded_as>
+    <field name="lnk_data.command_line_arguments" type="pcre2">(?i)cmd|powershell|psexec|MSHTA|bitsadmin|certutil|vbc|csc|del|echo|tasklist|rundll32|regsvr32|%COMSPEC%|Assembly\.Load|\[Reflection\.Assembly\]:>
+    <description>Possible adversary activity - Suspicious Windows shortcut "$(lnk_data.file_path)" with malicious artifacts. Possible LNK file abuse.</description>
+    <mitre>
+      <id>T1547.009</id>
+      <id>T1036</id>
+    </mitre>
+  </rule>
+  <rule id="110004" level="12">
+    <decoded_as>raw_json</decoded_as>
+    <field name="header.link_flags" type="pcre2">(?i)HasRelativePath</field>
+    <field name="lnk_data.relative_path" type="pcre2">(?i)cmd|powershell|psexec|MSHTA|bitsadmin|certutil|vbc|csc|del|echo|tasklist|rundll32|regsvr32|%COMSPEC%|Assembly\.Load|\[Reflection\.Assembly\]::Load|\.d>
+    <description>Possible adversary activity - Suspicious Windows shortcut "$(lnk_data.file_path)" with malicious artifacts. Possible LNK file abuse.</description>
+    <mitre>
+          <id>T1547.009</id>
+      <id>T1036</id>
+    </mitre>
+  </rule>
+  <rule id="110005" level="12">
+    <if_sid>110003,110004</if_sid>
+    <description>Possible adversary activity - Suspicious Windows shortcut "$(lnk_data.file_path)" with malicious artifacts. Possible LNK file abuse.</description>
+    <mitre>
+      <id>T1547.009</id>
+      <id>T1036</id>
+    </mitre>
+  </rule>
+</group>
